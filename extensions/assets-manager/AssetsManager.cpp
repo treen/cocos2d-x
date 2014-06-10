@@ -89,7 +89,8 @@ AssetsManager::AssetsManager(const char* packageUrl/* =NULL */, const char* vers
 , _isDownloading(false)
 , _shouldDeleteDelegateWhenExit(false)
 {
-    checkStoragePath();
+    
+	
 }
 
 AssetsManager::~AssetsManager()
@@ -102,7 +103,7 @@ AssetsManager::~AssetsManager()
 
 void AssetsManager::checkStoragePath()
 {
-    if (_storagePath.size() > 0 && _storagePath[_storagePath.size() - 1] != '/')
+    if (_isZip && _storagePath.size() > 0 && _storagePath[_storagePath.size() - 1] != '/')
     {
         _storagePath.append("/");
     }
@@ -207,14 +208,17 @@ void AssetsManager::downloadAndUncompress()
         }
         
         // Uncompress zip file.
-        if (! uncompress())
-        {
-            Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
-                if (this->_delegate)
-                    this->_delegate->onError(ErrorCode::UNCOMPRESS);
-            });
-            break;
-        }
+		if (_isZip)
+		{
+			if (!uncompress())
+			{
+				Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
+					if (this->_delegate)
+						this->_delegate->onError(ErrorCode::UNCOMPRESS);
+				});
+				break;
+			}
+		}
         
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this] {
             
@@ -229,11 +233,15 @@ void AssetsManager::downloadAndUncompress()
             this->setSearchPath();
             
             // Delete unloaded zip file.
-			string zipfileName = _outputFileName;
-            if (remove(zipfileName.c_str()) != 0)
-            {
-                CCLOG("can not remove downloaded zip file %s", zipfileName.c_str());
-            }
+			if (_isZip)
+			{
+				string zipfileName = _outputFileName;
+
+				if (remove(zipfileName.c_str()) != 0)
+				{
+					CCLOG("can not remove downloaded zip file %s", zipfileName.c_str());
+				}
+			}
             
             if (this->_delegate) this->_delegate->onSuccess();
         });
@@ -252,8 +260,8 @@ void AssetsManager::updateAsync()
 	// 1. Urls of package and version should be valid;
 	// 2. Package should be a zip file.
 	if (_versionFileUrl.size() == 0 ||
-		_packageUrl.size() == 0 ||
-		std::string::npos == _packageUrl.find(".zip"))
+		_packageUrl.size() == 0 /*||
+		std::string::npos == _packageUrl.find(".zip")*/)
 	{
 		CCLOG("no version file url, or no package url, or the package is not a zip file");
 		_isDownloading = false;
@@ -287,7 +295,15 @@ void AssetsManager::updateAsync()
 
 void AssetsManager::update()
 {
-	_outputFileName = _storagePath + keyOfDownloadedVersion() +".zip";
+	if (std::string::npos == _packageUrl.rfind(".zip"))
+		_isZip = false;
+	else
+		_isZip = true;
+	checkStoragePath();
+	if (_isZip)
+		_outputFileName = _storagePath + keyOfDownloadedVersion() +".zip";
+	else
+		_outputFileName = _storagePath;
 	auto t = std::thread(&AssetsManager::updateAsync, this);
     t.detach();
 }

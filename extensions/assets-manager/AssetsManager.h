@@ -180,6 +180,7 @@ private:
     void destroyStoragePath();
     
 private:
+	bool _isZip;
     //! The path to store downloaded resources.
     std::string _storagePath;
     
