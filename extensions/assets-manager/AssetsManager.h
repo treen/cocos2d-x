@@ -171,6 +171,9 @@ protected:
     void downloadAndUncompress();
 
 private:
+	static void updateNext();
+	static std::mutex _mtx;
+	static std::queue<AssetsManager*> _queueAssetsManager;
     /** @brief Initializes storage path.
      */
     void createStoragePath();
