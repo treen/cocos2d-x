@@ -169,10 +169,11 @@ bool AssetsManager::checkUpdate()
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NETWORK);
-			updateNext();
+			
         });
         CCLOG("can not get version file content, error code is %d", res);
         curl_easy_cleanup(_curl);
+		updateNext();
         return false;
     }
     
@@ -182,11 +183,12 @@ bool AssetsManager::checkUpdate()
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NO_NEW_VERSION);
-			updateNext();
+			
         });
         CCLOG("there is not new version");
         // Set resource search path.
         setSearchPath();
+		updateNext();
         return false;
     }
     
@@ -218,8 +220,9 @@ void AssetsManager::downloadAndUncompress()
 				Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
 					if (this->_delegate)
 						this->_delegate->onError(ErrorCode::UNCOMPRESS);
-					updateNext();
+					
 				});
+				updateNext();
 				break;
 			}
 		}
@@ -248,12 +251,13 @@ void AssetsManager::downloadAndUncompress()
 			}
             
             if (this->_delegate) this->_delegate->onSuccess();
-			updateNext();
+			
         });
        
     } while (0);
     
     _isDownloading = false;
+	updateNext();
 }
 
 void AssetsManager::updateAsync()
@@ -307,7 +311,7 @@ void AssetsManager::update()
 		_mtx.unlock();
 		return;
 	}
-	_mtx.lock();
+	_mtx.unlock();
 	if (std::string::npos == _packageUrl.rfind(".zip"))
 		_isZip = false;
 	else
@@ -558,9 +562,10 @@ bool AssetsManager::downLoad()
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::CREATE_FILE);
-			updateNext();
+			
         });
         CCLOG("can not create file %s", outFileName.c_str());
+		updateNext();
         return false;
     }
     
@@ -583,10 +588,12 @@ bool AssetsManager::downLoad()
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NETWORK);
-			updateNext();
+			
         });
+		
         CCLOG("error when download package");
         fclose(fp);
+		updateNext();
         return false;
     }
     
@@ -724,11 +731,15 @@ void AssetsManager::updateNext()
 {
 	_mtx.lock();
 	if (_queueAssetsManager.empty())
+	{
+		_mtx.unlock();
 		return;
+	}
 	auto manager = _queueAssetsManager.front();
 	_queueAssetsManager.pop();
-	manager->update();
 	_mtx.unlock();
+	manager->update();
+	
 }
 
 
