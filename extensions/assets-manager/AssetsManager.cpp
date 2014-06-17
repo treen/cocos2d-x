@@ -162,9 +162,13 @@ bool AssetsManager::checkUpdate()
     curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_LIMIT, LOW_SPEED_LIMIT);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_TIME, LOW_SPEED_TIME);
+	curl_easy_setopt(_curl, CURLOPT_FOLLOWLOCATION, 1);
     res = curl_easy_perform(_curl);
     
-    if (res != 0)
+	long code;
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &code);
+	curl_easy_cleanup(_curl);
+    if (res != 0 || code != 200 )
     {
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
@@ -176,6 +180,8 @@ bool AssetsManager::checkUpdate()
 		updateNext();
         return false;
     }
+	
+	
     
     string recordedVersion = UserDefault::getInstance()->getStringForKey(keyOfVersion().c_str());
     if (recordedVersion == _version)
@@ -193,7 +199,7 @@ bool AssetsManager::checkUpdate()
     }
     
     CCLOG("there is a new version: %s", _version.c_str());
-    
+     
     return true;
 }
 
@@ -262,6 +268,16 @@ void AssetsManager::downloadAndUncompress()
 
 void AssetsManager::updateAsync()
 {
+	if (std::string::npos == _packageUrl.rfind(".zip"))
+		_isZip = false;
+	else
+		_isZip = true;
+
+	if (_isZip)
+		_outputFileName = _storagePath + keyOfDownloadedVersion() + ".zip";
+	else
+		_outputFileName = _storagePath;
+	checkStoragePath();
 	if (_isDownloading) return;
 
 	_isDownloading = true;
@@ -283,6 +299,7 @@ void AssetsManager::updateAsync()
 		if (!checkUpdate())
 		{
 			_isDownloading = false;
+			std::this_thread::sleep_for(std::chrono::microseconds(500));
 			return;
 		}
 	}
@@ -303,25 +320,28 @@ void AssetsManager::updateAsync()
 }
 
 void AssetsManager::update()
-{
+{ 
 	_mtx.lock();
-	if (!_queueAssetsManager.empty())
-	{
-		_queueAssetsManager.push(this);
+	_queueAssetsManager.push(this);
+	if (_isUpdating )
+	{		
+		
 		_mtx.unlock();
 		return;
 	}
+	else
+	{
+		_isUpdating = true;
+	}
+	
 	_mtx.unlock();
-	if (std::string::npos == _packageUrl.rfind(".zip"))
-		_isZip = false;
-	else
-		_isZip = true;
-	checkStoragePath();
-	if (_isZip)
-		_outputFileName = _storagePath + keyOfDownloadedVersion() +".zip";
-	else
-		_outputFileName = _storagePath;
-	auto t = std::thread(&AssetsManager::updateAsync, this);
+	
+
+
+	
+
+
+	auto t = std::thread(&AssetsManager::updateLoop, this);
     t.detach();
 }
 
@@ -555,7 +575,7 @@ int assetsManagerProgressFunc(void *ptr, double totalToDownload, double nowDownl
 bool AssetsManager::downLoad()
 {
     // Create a file to save package.
-	const string outFileName = _outputFileName;
+	const string outFileName = _outputFileName+".temp";
     FILE *fp = fopen(outFileName.c_str(), "wb");
     if (! fp)
     {
@@ -580,11 +600,14 @@ bool AssetsManager::downLoad()
     curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_LIMIT, LOW_SPEED_LIMIT);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_TIME, LOW_SPEED_TIME);
-
+	curl_easy_setopt(_curl, CURLOPT_FOLLOWLOCATION, 1);
     res = curl_easy_perform(_curl);
-    curl_easy_cleanup(_curl);
-    if (res != 0)
-    {
+
+	long code;
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &code);
+	curl_easy_cleanup(_curl);
+	if (res != 0 || code != 200)
+	{
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NETWORK);
@@ -600,6 +623,7 @@ bool AssetsManager::downLoad()
     CCLOG("succeed downloading package %s", _packageUrl.c_str());
     
     fclose(fp);
+	rename(outFileName.c_str(), _outputFileName.c_str());
     return true;
 }
 
@@ -729,18 +753,31 @@ void AssetsManager::destroyStoragePath()
 
 void AssetsManager::updateNext()
 {
-	_mtx.lock();
-	if (_queueAssetsManager.empty())
-	{
-		_mtx.unlock();
-		return;
-	}
-	auto manager = _queueAssetsManager.front();
-	_queueAssetsManager.pop();
-	_mtx.unlock();
-	manager->update();
+	
 	
 }
+
+void AssetsManager::updateLoop()
+{
+	while (1)
+	{
+		_mtx.lock();
+		if (_queueAssetsManager.empty())
+		{
+
+			//_isUpdating = false;
+			_mtx.unlock();
+			std::this_thread::yield();
+			continue;
+		}
+		auto manager = _queueAssetsManager.front();
+		_queueAssetsManager.pop();
+		_mtx.unlock();
+		manager->updateAsync();
+	}
+}
+
+bool AssetsManager::_isUpdating = false;
 
 
 

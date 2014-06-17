@@ -28,7 +28,6 @@
 #include <string>
 
 #include <mutex>
-
 #include "cocos2d.h"
 #include "extensions/ExtensionMacros.h"
 
@@ -169,8 +168,12 @@ protected:
     bool createDirectory(const char *path);
     void setSearchPath();
     void downloadAndUncompress();
-
+#if (CC_TARGET_PLATFORM != CC_PLATFORM_WIN32) && (CC_TARGET_PLATFORM != CC_PLATFORM_WP8) && (CC_TARGET_PLATFORM != CC_PLATFORM_WINRT)
+	static void* updateThread(void* pData);
+#endif
 private:
+	void updateLoop();
+	static bool _isUpdating;
 	static void updateNext();
 	static std::mutex _mtx;
 	static std::queue<AssetsManager*> _queueAssetsManager;
