@@ -167,18 +167,26 @@ bool AssetsManager::checkUpdate()
     
 	long code;
 	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &code);
-	curl_easy_cleanup(_curl);
     if (res != 0 || code != 200 )
     {
-        Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
-            if (this->_delegate)
-                this->_delegate->onError(ErrorCode::NETWORK);
-			
-        });
-        CCLOG("can not get version file content, error code is %d", res);
-        curl_easy_cleanup(_curl);
-		updateNext();
-        return false;
+		if (code == 404)
+		{
+			CCLOG("can not get version file content, error code is %d,%d", res, code);
+			deleteVersion();
+			_version = "1";
+		}
+		else
+		{
+			Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
+				if (this->_delegate)
+					this->_delegate->onError(ErrorCode::NETWORK);
+
+			});
+			CCLOG("can not get version file content, error code is %d,%d", res, code);
+			curl_easy_cleanup(_curl);
+			return false;
+		}
+        
     }
 	
 	
@@ -194,7 +202,6 @@ bool AssetsManager::checkUpdate()
         CCLOG("there is not new version");
         // Set resource search path.
         setSearchPath();
-		updateNext();
         return false;
     }
     
@@ -228,7 +235,6 @@ void AssetsManager::downloadAndUncompress()
 						this->_delegate->onError(ErrorCode::UNCOMPRESS);
 					
 				});
-				updateNext();
 				break;
 			}
 		}
@@ -263,7 +269,6 @@ void AssetsManager::downloadAndUncompress()
     } while (0);
     
     _isDownloading = false;
-	updateNext();
 }
 
 void AssetsManager::updateAsync()
@@ -299,7 +304,7 @@ void AssetsManager::updateAsync()
 		if (!checkUpdate())
 		{
 			_isDownloading = false;
-			std::this_thread::sleep_for(std::chrono::microseconds(500));
+			//std::this_thread::sleep_for(std::chrono::microseconds(500));
 			return;
 		}
 	}
@@ -585,7 +590,6 @@ bool AssetsManager::downLoad()
 			
         });
         CCLOG("can not create file %s", outFileName.c_str());
-		updateNext();
         return false;
     }
     
@@ -616,13 +620,13 @@ bool AssetsManager::downLoad()
 		
         CCLOG("error when download package");
         fclose(fp);
-		updateNext();
         return false;
     }
     
     CCLOG("succeed downloading package %s", _packageUrl.c_str());
     
     fclose(fp);
+	remove(_outputFileName.c_str());
 	rename(outFileName.c_str(), _outputFileName.c_str());
     return true;
 }
@@ -751,11 +755,7 @@ void AssetsManager::destroyStoragePath()
 #endif
 }
 
-void AssetsManager::updateNext()
-{
-	
-	
-}
+
 
 void AssetsManager::updateLoop()
 {

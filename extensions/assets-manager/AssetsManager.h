@@ -174,7 +174,6 @@ protected:
 private:
 	void updateLoop();
 	static bool _isUpdating;
-	static void updateNext();
 	static std::mutex _mtx;
 	static std::queue<AssetsManager*> _queueAssetsManager;
     /** @brief Initializes storage path.
