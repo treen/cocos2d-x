@@ -589,6 +589,20 @@ void PageView::copySpecialProperties(Widget *widget)
         _pageViewEventSelector = pageView->_pageViewEventSelector;
     }
 }
+ssize_t PageView::getChildrenCount() const
+{
+	return _protectedChildren.size();
+}
+
+const Vector<Node*>& PageView::getChildren() const
+{
+	return _protectedChildren;
+}
+
+Vector<Node*>& PageView::getChildren()
+{
+	return _protectedChildren;
+}
 
 }
 
