@@ -76,7 +76,8 @@ struct ProgressMessage
 };
 
 // Implementation of AssetsManager
-
+std::mutex AssetsManager::_mtx;
+std::queue<AssetsManager*> AssetsManager::_queueAssetsManager;
 AssetsManager::AssetsManager(const char* packageUrl/* =NULL */, const char* versionFileUrl/* =NULL */, const char* storagePath/* =NULL */)
 :  _storagePath(storagePath)
 , _version("")
@@ -89,7 +90,8 @@ AssetsManager::AssetsManager(const char* packageUrl/* =NULL */, const char* vers
 , _isDownloading(false)
 , _shouldDeleteDelegateWhenExit(false)
 {
-    checkStoragePath();
+    
+	
 }
 
 AssetsManager::~AssetsManager()
@@ -102,7 +104,7 @@ AssetsManager::~AssetsManager()
 
 void AssetsManager::checkStoragePath()
 {
-    if (_storagePath.size() > 0 && _storagePath[_storagePath.size() - 1] != '/')
+    if (_isZip && _storagePath.size() > 0 && _storagePath[_storagePath.size() - 1] != '/')
     {
         _storagePath.append("/");
     }
@@ -112,7 +114,8 @@ void AssetsManager::checkStoragePath()
 static std::string keyWithHash( const char* prefix, const std::string& url )
 {
     char buf[256];
-    sprintf(buf,"%s%zd",prefix,std::hash<std::string>()(url));
+	size_t temp = std::hash<std::string>()(url);
+	sprintf(buf, "%s%d", prefix, temp);
     return buf;
 }
 
@@ -159,18 +162,34 @@ bool AssetsManager::checkUpdate()
     curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_LIMIT, LOW_SPEED_LIMIT);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_TIME, LOW_SPEED_TIME);
+	curl_easy_setopt(_curl, CURLOPT_FOLLOWLOCATION, 1);
     res = curl_easy_perform(_curl);
     
-    if (res != 0)
+	long code;
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &code);
+    if (res != 0 || code != 200 )
     {
-        Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
-            if (this->_delegate)
-                this->_delegate->onError(ErrorCode::NETWORK);
-        });
-        CCLOG("can not get version file content, error code is %d", res);
-        curl_easy_cleanup(_curl);
-        return false;
+		if (code == 404)
+		{
+			CCLOG("can not get version file content, error code is %d,%d", res, code);
+			deleteVersion();
+			_version = "1";
+		}
+		else
+		{
+			Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
+				if (this->_delegate)
+					this->_delegate->onError(ErrorCode::NETWORK);
+
+			});
+			CCLOG("can not get version file content, error code is %d,%d", res, code);
+			curl_easy_cleanup(_curl);
+			return false;
+		}
+        
     }
+	
+	
     
     string recordedVersion = UserDefault::getInstance()->getStringForKey(keyOfVersion().c_str());
     if (recordedVersion == _version)
@@ -178,6 +197,7 @@ bool AssetsManager::checkUpdate()
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NO_NEW_VERSION);
+			
         });
         CCLOG("there is not new version");
         // Set resource search path.
@@ -186,7 +206,7 @@ bool AssetsManager::checkUpdate()
     }
     
     CCLOG("there is a new version: %s", _version.c_str());
-    
+     
     return true;
 }
 
@@ -206,14 +226,18 @@ void AssetsManager::downloadAndUncompress()
         }
         
         // Uncompress zip file.
-        if (! uncompress())
-        {
-            Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
-                if (this->_delegate)
-                    this->_delegate->onError(ErrorCode::UNCOMPRESS);
-            });
-            break;
-        }
+		if (_isZip)
+		{
+			if (!uncompress())
+			{
+				Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
+					if (this->_delegate)
+						this->_delegate->onError(ErrorCode::UNCOMPRESS);
+					
+				});
+				break;
+			}
+		}
         
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this] {
             
@@ -228,13 +252,18 @@ void AssetsManager::downloadAndUncompress()
             this->setSearchPath();
             
             // Delete unloaded zip file.
-            string zipfileName = this->_storagePath + TEMP_PACKAGE_FILE_NAME;
-            if (remove(zipfileName.c_str()) != 0)
-            {
-                CCLOG("can not remove downloaded zip file %s", zipfileName.c_str());
-            }
+			if (_isZip)
+			{
+				string zipfileName = _outputFileName;
+
+				if (remove(zipfileName.c_str()) != 0)
+				{
+					CCLOG("can not remove downloaded zip file %s", zipfileName.c_str());
+				}
+			}
             
             if (this->_delegate) this->_delegate->onSuccess();
+			
         });
        
     } while (0);
@@ -242,41 +271,89 @@ void AssetsManager::downloadAndUncompress()
     _isDownloading = false;
 }
 
-void AssetsManager::update()
+void AssetsManager::updateAsync()
 {
-    if (_isDownloading) return;
-    
-    _isDownloading = true;
-    
-    // 1. Urls of package and version should be valid;
-    // 2. Package should be a zip file.
-    if (_versionFileUrl.size() == 0 ||
-        _packageUrl.size() == 0 ||
-        std::string::npos == _packageUrl.find(".zip"))
-    {
-        CCLOG("no version file url, or no package url, or the package is not a zip file");
-        _isDownloading = false;
-        return;
-    }
-    
-    // Check if there is a new version.
-    if (! checkUpdate())
-    {
-        _isDownloading = false;
-        return;
-    }
-    
-    // Is package already downloaded?
-    _downloadedVersion = UserDefault::getInstance()->getStringForKey(keyOfDownloadedVersion().c_str());
-    
-    auto t = std::thread(&AssetsManager::downloadAndUncompress, this);
+	if (std::string::npos == _packageUrl.rfind(".zip"))
+		_isZip = false;
+	else
+		_isZip = true;
+
+	if (_isZip)
+		_outputFileName = _storagePath + keyOfDownloadedVersion() + ".zip";
+	else
+		_outputFileName = _storagePath;
+	checkStoragePath();
+	if (_isDownloading) return;
+
+	_isDownloading = true;
+
+	// 1. Urls of package and version should be valid;
+	// 2. Package should be a zip file.
+	if (_versionFileUrl.size() == 0 ||
+		_packageUrl.size() == 0 /*||
+		std::string::npos == _packageUrl.find(".zip")*/)
+	{
+		CCLOG("no version file url, or no package url, or the package is not a zip file");
+		_isDownloading = false;
+		return;
+	}
+
+	// Check if there is a new version.
+	if (_version == "")
+	{
+		if (!checkUpdate())
+		{
+			_isDownloading = false;
+			//std::this_thread::sleep_for(std::chrono::microseconds(500));
+			return;
+		}
+	}
+	else
+	{
+		string recordedVersion = UserDefault::getInstance()->getStringForKey(keyOfVersion().c_str());
+		if (recordedVersion == _version)
+		{
+			return;
+		}
+	}
+	
+
+	// Is package already downloaded?
+	_downloadedVersion = UserDefault::getInstance()->getStringForKey(keyOfDownloadedVersion().c_str());
+
+	downloadAndUncompress();
+}
+
+void AssetsManager::update()
+{ 
+	_mtx.lock();
+	_queueAssetsManager.push(this);
+	if (_isUpdating )
+	{		
+		
+		_mtx.unlock();
+		return;
+	}
+	else
+	{
+		_isUpdating = true;
+	}
+	
+	_mtx.unlock();
+	
+
+
+	
+
+
+	auto t = std::thread(&AssetsManager::updateLoop, this);
     t.detach();
 }
 
 bool AssetsManager::uncompress()
 {
     // Open the zip file
-    string outFileName = _storagePath + TEMP_PACKAGE_FILE_NAME;
+	string outFileName = _outputFileName;
     unzFile zipfile = unzOpen(outFileName.c_str());
     if (! zipfile)
     {
@@ -466,6 +543,7 @@ bool AssetsManager::createDirectory(const char *path)
 
 void AssetsManager::setSearchPath()
 {
+	return;
     vector<string> searchPaths = FileUtils::getInstance()->getSearchPaths();
     vector<string>::iterator iter = searchPaths.begin();
     searchPaths.insert(iter, _storagePath);
@@ -502,13 +580,14 @@ int assetsManagerProgressFunc(void *ptr, double totalToDownload, double nowDownl
 bool AssetsManager::downLoad()
 {
     // Create a file to save package.
-    const string outFileName = _storagePath + TEMP_PACKAGE_FILE_NAME;
+	const string outFileName = _outputFileName+".temp";
     FILE *fp = fopen(outFileName.c_str(), "wb");
     if (! fp)
     {
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::CREATE_FILE);
+			
         });
         CCLOG("can not create file %s", outFileName.c_str());
         return false;
@@ -525,15 +604,20 @@ bool AssetsManager::downLoad()
     curl_easy_setopt(_curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_LIMIT, LOW_SPEED_LIMIT);
     curl_easy_setopt(_curl, CURLOPT_LOW_SPEED_TIME, LOW_SPEED_TIME);
-
+	curl_easy_setopt(_curl, CURLOPT_FOLLOWLOCATION, 1);
     res = curl_easy_perform(_curl);
-    curl_easy_cleanup(_curl);
-    if (res != 0)
-    {
+
+	long code;
+	curl_easy_getinfo(_curl, CURLINFO_RESPONSE_CODE, &code);
+	curl_easy_cleanup(_curl);
+	if (res != 0 || code != 200)
+	{
         Director::getInstance()->getScheduler()->performFunctionInCocosThread([&, this]{
             if (this->_delegate)
                 this->_delegate->onError(ErrorCode::NETWORK);
+			
         });
+		
         CCLOG("error when download package");
         fclose(fp);
         return false;
@@ -542,6 +626,8 @@ bool AssetsManager::downLoad()
     CCLOG("succeed downloading package %s", _packageUrl.c_str());
     
     fclose(fp);
+	remove(_outputFileName.c_str());
+	rename(outFileName.c_str(), _outputFileName.c_str());
     return true;
 }
 
@@ -575,7 +661,10 @@ void AssetsManager::setVersionFileUrl(const char *versionFileUrl)
 {
     _versionFileUrl = versionFileUrl;
 }
-
+void AssetsManager::setVersion(std::string version)
+{
+	_version = version;
+}
 string AssetsManager::getVersion()
 {
     return UserDefault::getInstance()->getStringForKey(keyOfVersion().c_str());
@@ -665,5 +754,32 @@ void AssetsManager::destroyStoragePath()
     system(command.c_str());
 #endif
 }
+
+
+
+void AssetsManager::updateLoop()
+{
+	while (1)
+	{
+		_mtx.lock();
+		if (_queueAssetsManager.empty())
+		{
+
+			//_isUpdating = false;
+			_mtx.unlock();
+			std::this_thread::yield();
+			continue;
+		}
+		auto manager = _queueAssetsManager.front();
+		_queueAssetsManager.pop();
+		_mtx.unlock();
+		manager->updateAsync();
+	}
+}
+
+bool AssetsManager::_isUpdating = false;
+
+
+
 
 NS_CC_EXT_END;

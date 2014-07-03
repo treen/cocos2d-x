@@ -171,7 +171,9 @@ public:
 
 CC_CONSTRUCTOR_ACCESS:
     virtual bool init() override;
-
+	virtual Vector<Node*>& getChildren() override;
+	virtual const Vector<Node*>& getChildren() const override;
+	virtual ssize_t getChildrenCount() const override;
 protected:
 
     Layout* createPage();

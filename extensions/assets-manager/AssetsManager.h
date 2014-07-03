@@ -28,7 +28,6 @@
 #include <string>
 
 #include <mutex>
-
 #include "cocos2d.h"
 #include "extensions/ExtensionMacros.h"
 
@@ -99,6 +98,7 @@ public:
     /* @brief Download new package if there is a new version, and uncompress downloaded zip file.
      *        Ofcourse it will set search path that stores downloaded files.
      */
+	virtual void updateAsync();
     virtual void update();
     
     /* @brief Gets url of package.
@@ -120,6 +120,7 @@ public:
     /* @brief Gets current version code.
      */
     std::string getVersion();
+	void setVersion(std::string version );
     
     /* @brief Deletes recorded version code.
      */
@@ -167,8 +168,14 @@ protected:
     bool createDirectory(const char *path);
     void setSearchPath();
     void downloadAndUncompress();
-
+#if (CC_TARGET_PLATFORM != CC_PLATFORM_WIN32) && (CC_TARGET_PLATFORM != CC_PLATFORM_WP8) && (CC_TARGET_PLATFORM != CC_PLATFORM_WINRT)
+	static void* updateThread(void* pData);
+#endif
 private:
+	void updateLoop();
+	static bool _isUpdating;
+	static std::mutex _mtx;
+	static std::queue<AssetsManager*> _queueAssetsManager;
     /** @brief Initializes storage path.
      */
     void createStoragePath();
@@ -178,6 +185,7 @@ private:
     void destroyStoragePath();
     
 private:
+	bool _isZip;
     //! The path to store downloaded resources.
     std::string _storagePath;
     
@@ -188,7 +196,7 @@ private:
     std::string _versionFileUrl;
     
     std::string _downloadedVersion;
-    
+	std::string _outputFileName;
     void *_curl;
 
     unsigned int _connectionTimeout;
