@@ -43,7 +43,8 @@ CC_DEPRECATED_ATTRIBUTE typedef enum
     SCROLLVIEW_EVENT_BOUNCE_TOP,
     SCROLLVIEW_EVENT_BOUNCE_BOTTOM,
     SCROLLVIEW_EVENT_BOUNCE_LEFT,
-    SCROLLVIEW_EVENT_BOUNCE_RIGHT
+    SCROLLVIEW_EVENT_BOUNCE_RIGHT,
+	SCROLLVIEW_EVENT_SCROLL_END
 }ScrollviewEventType;
 
 CC_DEPRECATED_ATTRIBUTE typedef void (Ref::*SEL_ScrollViewEvent)(Ref*, ScrollviewEventType);
@@ -74,7 +75,8 @@ public:
         BOUNCE_TOP,
         BOUNCE_BOTTOM,
         BOUNCE_LEFT,
-        BOUNCE_RIGHT
+        BOUNCE_RIGHT,
+		SCROLL_END
     };
     typedef std::function<void(Ref*, EventType)> ccScrollViewCallback;
    
@@ -373,7 +375,7 @@ protected:
     void bounceBottomEvent();
     void bounceLeftEvent();
     void bounceRightEvent();
-    
+	void scrollEndEvent();
 protected:
     Layout* _innerContainer;
     

@@ -469,6 +469,7 @@ void ScrollView::stopBounceChildren()
     _rightBounceNeeded = false;
     _topBounceNeeded = false;
     _bottomBounceNeeded = false;
+	scrollEndEvent();
 }
 
 void ScrollView::startAutoScrollChildrenWithOriginalSpeed(const Vec2& dir, float v, bool attenuated, float acceleration)
@@ -541,6 +542,8 @@ void ScrollView::stopAutoScrollChildren()
     _autoScroll = false;
     _autoScrollOriginalSpeed = 0.0f;
     _autoScrollAddUpTime = 0.0f;
+	if (!checkNeedBounce())
+		scrollEndEvent();
 }
 
 bool ScrollView::bounceScrollChildren(float touchOffsetX, float touchOffsetY)
@@ -1647,6 +1650,17 @@ void ScrollView::bounceRightEvent()
     if (_eventCallback) {
         _eventCallback(this,EventType::BOUNCE_RIGHT);
     }
+}
+
+void ScrollView::scrollEndEvent()
+{
+	if (_scrollViewEventListener && _scrollViewEventSelector)
+	{
+		(_scrollViewEventListener->*_scrollViewEventSelector)(this, SCROLLVIEW_EVENT_SCROLL_END);
+	}
+	if (_eventCallback) {
+		_eventCallback(this, EventType::SCROLL_END);
+	}
 }
 
 void ScrollView::addEventListenerScrollView(Ref *target, SEL_ScrollViewEvent selector)
