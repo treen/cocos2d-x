@@ -23,7 +23,7 @@ THE SOFTWARE.
 ****************************************************************************/
 
 #include "ui/UITextField.h"
-
+#include "cocos2d.h"
 NS_CC_BEGIN
 
 namespace ui {
@@ -368,6 +368,19 @@ _eventCallback(nullptr),
 _passwordStyleText(""),
 _textFieldRendererAdaptDirty(true)
 {
+	int pixels[4][4];
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			pixels[i][j] = 0xffffffff;
+		}
+	}
+	Texture2D *texture = new Texture2D();
+	texture->initWithData(pixels, 64, Texture2D::PixelFormat::RGB888, 4, 4, Size(4, 4));
+	m_pCursorSprite = cocos2d::Sprite::createWithTexture(texture);
+	addChild(m_pCursorSprite);
+	m_pCursorSprite->setVisible(false);
+	m_pCursorSprite->setAnchorPoint(Point(0.5, 0.5));
+	
 }
 
 TextField::~TextField()
@@ -536,6 +549,7 @@ void TextField::setFontSize(int size)
     _textFieldRenderer->setSystemFontSize(size);
     _textFieldRendererAdaptDirty = true;
     updateContentSizeWithTextureSize(_textFieldRenderer->getContentSize());
+	m_pCursorSprite->setScaleY(size / 4.0f);
 }
     
 int TextField::getFontSize()const
@@ -698,6 +712,7 @@ void TextField::setDeleteBackward(bool deleteBackward)
 
 void TextField::attachWithIMEEvent()
 {
+	showCursor(true);
     if (_textFieldEventListener && _textFieldEventSelector)
     {
         (_textFieldEventListener->*_textFieldEventSelector)(this, TEXTFIELD_EVENT_ATTACH_WITH_IME);
@@ -709,6 +724,7 @@ void TextField::attachWithIMEEvent()
 
 void TextField::detachWithIMEEvent()
 {
+	showCursor(false);
     if (_textFieldEventListener && _textFieldEventSelector)
     {
         (_textFieldEventListener->*_textFieldEventSelector)(this, TEXTFIELD_EVENT_DETACH_WITH_IME);
@@ -716,6 +732,28 @@ void TextField::detachWithIMEEvent()
     if (_eventCallback) {
         _eventCallback(this, EventType::DETACH_WITH_IME);
     }
+}
+
+void TextField::showCursor(bool show)
+{
+	if (show)
+	{
+		m_pCursorSprite->setVisible(true);		
+		m_pCursorSprite->runAction( RepeatForever::create(Blink::create(1, 1)));
+		updateCursorPosition();
+	}
+	else
+	{
+		m_pCursorSprite->setVisible(false);
+		m_pCursorSprite->cleanup();
+	}	
+}
+
+void TextField::updateCursorPosition()
+{
+
+	m_pCursorSprite->setPosition(getVirtualRendererSize().width, _size.height*0.5);
+	
 }
 
 void TextField::insertTextEvent()
@@ -727,6 +765,7 @@ void TextField::insertTextEvent()
     if (_eventCallback) {
         _eventCallback(this, EventType::INSERT_TEXT);
     }
+	updateCursorPosition();
 }
 
 void TextField::deleteBackwardEvent()
@@ -738,6 +777,7 @@ void TextField::deleteBackwardEvent()
     if (_eventCallback) {
         _eventCallback(this, EventType::DELETE_BACKWARD);
     }
+	updateCursorPosition();
 }
 
 void TextField::addEventListenerTextField(Ref *target, SEL_TextFieldEvent selecor)
@@ -772,10 +812,12 @@ void TextField::textfieldRendererScaleChangedWithSize()
     {
         _textFieldRenderer->setDimensions(0,0);
         _textFieldRenderer->setScale(1.0f);
+		_textFieldRenderer->setPosition(_contentSize.width / 2.0f, _contentSize.height / 2.0f);
     }
     else
     {
-        _textFieldRenderer->setDimensions(_size.width,_size.height);
+		_textFieldRenderer->setDimensions(0, 0);
+        //_textFieldRenderer->setDimensions(_size.width,_size.height);
         Size textureSize = getContentSize();
         if (textureSize.width <= 0.0f || textureSize.height <= 0.0f)
         {
@@ -786,8 +828,11 @@ void TextField::textfieldRendererScaleChangedWithSize()
         float scaleY = _size.height / textureSize.height;
         _textFieldRenderer->setScaleX(scaleX);
         _textFieldRenderer->setScaleY(scaleY);
+		//_textFieldRenderer->setPosition(_contentSize.width / 2.0f, _contentSize.height / 2.0f);
+		_textFieldRenderer->setAnchorPoint(Point(0, 0.5));
+		_textFieldRenderer->setPosition(0, _size.height*0.5);
     }
-    _textFieldRenderer->setPosition(_contentSize.width / 2.0f, _contentSize.height / 2.0f);
+    
 }
 
 const Size& TextField::getVirtualRendererSize() const
@@ -807,6 +852,7 @@ std::string TextField::getDescription() const
 
 void TextField::attachWithIME()
 {
+	showCursor(true);
     _textFieldRenderer->attachWithIME();
 }
 

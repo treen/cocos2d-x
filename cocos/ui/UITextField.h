@@ -195,6 +195,7 @@ protected:
     virtual void initRenderer() override;
     void attachWithIMEEvent();
     void detachWithIMEEvent();
+	void showCursor(bool show);
     void insertTextEvent();
     void deleteBackwardEvent();
     virtual void onSizeChanged() override;
@@ -204,9 +205,10 @@ protected:
     virtual Widget* createCloneInstance() override;
     virtual void copySpecialProperties(Widget* model) override;
     virtual void adaptRenderers() override;
+	void updateCursorPosition();
 protected:
     UICCTextField* _textFieldRenderer;
-
+	Sprite* m_pCursorSprite;
     float _touchWidth;
     float _touchHeight;
     bool _useTouchArea;
