@@ -408,6 +408,10 @@ void Armature::draw(cocos2d::Renderer *renderer, const Mat4 &transform, uint32_t
                 {
                     skin->setBlendFunc(bone->getBlendFunc());
                 }
+                else
+                {
+                    skin->setBlendFunc(_blendFunc);
+                }
                 skin->draw(renderer, transform, flags);
             }
             break;
@@ -434,6 +438,14 @@ void Armature::draw(cocos2d::Renderer *renderer, const Mat4 &transform, uint32_t
 
 void Armature::onEnter()
 {
+#if CC_ENABLE_SCRIPT_BINDING
+    if (_scriptType == kScriptTypeJavascript)
+    {
+        if (ScriptEngineManager::sendNodeEventToJSExtended(this, kNodeOnEnter))
+            return;
+    }
+#endif
+    
     Node::onEnter();
     scheduleUpdate();
 }
@@ -486,6 +498,8 @@ Rect Armature::getBoundingBox() const
         if (Bone *bone = dynamic_cast<Bone *>(object))
         {
             Rect r = bone->getDisplayManager()->getBoundingBox();
+            if (r.equals(Rect::ZERO)) 
+                continue;
 
             if(first)
             {

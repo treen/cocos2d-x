@@ -54,6 +54,7 @@ Classes/ExtensionsTest/CocosBuilderTest/MenuTest/MenuTestLayer.cpp \
 Classes/ExtensionsTest/CocosBuilderTest/TestHeader/TestHeaderLayer.cpp \
 Classes/ExtensionsTest/CocosBuilderTest/TimelineCallbackTest/TimelineCallbackTestLayer.cpp \
 Classes/ExtensionsTest/CocoStudioArmatureTest/ArmatureScene.cpp \
+Classes/ExtensionsTest/CocoStudioActionTimelineTest/ActionTimelineTestScene.cpp \
 Classes/ExtensionsTest/CocoStudioComponentsTest/ComponentsTestScene.cpp \
 Classes/ExtensionsTest/CocoStudioComponentsTest/EnemyController.cpp \
 Classes/ExtensionsTest/CocoStudioComponentsTest/GameOverScene.cpp \
@@ -169,6 +170,7 @@ Classes/Texture2dTest/Texture2dTest.cpp \
 Classes/TextureCacheTest/TextureCacheTest.cpp \
 Classes/TexturePackerEncryptionTest/TextureAtlasEncryptionTest.cpp \
 Classes/TileMapTest/TileMapTest.cpp \
+Classes/TileMapTest/TileMapTest2.cpp \
 Classes/TouchesTest/Ball.cpp \
 Classes/TouchesTest/Paddle.cpp \
 Classes/TouchesTest/TouchesTest.cpp \

@@ -2,6 +2,7 @@
 --------------------------------
 -- @module Node
 -- @extend Ref
+-- @parent_module cc
 
 --------------------------------
 -- overload function: addChild(cc.Node, int)
@@ -10,11 +11,13 @@
 --          
 -- overload function: addChild(cc.Node, int, int)
 --          
+-- overload function: addChild(cc.Node, int, string)
+--          
 -- @function [parent=#Node] addChild
 -- @param self
 -- @param #cc.Node node
 -- @param #int int
--- @param #int int
+-- @param #string str
 
 --------------------------------
 -- @function [parent=#Node] removeComponent 
@@ -57,6 +60,11 @@
 -- @return array_table#array_table ret (retunr value: array_table)
 
 --------------------------------
+-- @function [parent=#Node] setOnExitCallback 
+-- @param self
+-- @param #function func
+        
+--------------------------------
 -- @function [parent=#Node] pause 
 -- @param self
         
@@ -70,6 +78,12 @@
 -- @function [parent=#Node] isIgnoreAnchorPointForPosition 
 -- @param self
 -- @return bool#bool ret (return value: bool)
+        
+--------------------------------
+-- @function [parent=#Node] getChildByName 
+-- @param self
+-- @param #string str
+-- @return Node#Node ret (return value: cc.Node)
         
 --------------------------------
 -- @function [parent=#Node] updateDisplayedOpacity 
@@ -102,6 +116,11 @@
 -- @param #float float
         
 --------------------------------
+-- @function [parent=#Node] setonEnterTransitionDidFinishCallback 
+-- @param self
+-- @param #function func
+        
+--------------------------------
 -- @function [parent=#Node] removeAllComponents 
 -- @param self
         
@@ -114,6 +133,11 @@
 -- @function [parent=#Node] getTag 
 -- @param self
 -- @return int#int ret (return value: int)
+        
+--------------------------------
+-- @function [parent=#Node] getonEnterTransitionDidFinishCallback 
+-- @param self
+-- @return function#function ret (return value: function)
         
 --------------------------------
 -- @function [parent=#Node] getGLProgram 
@@ -163,6 +187,11 @@
 -- @param #cc.GLProgramState glprogramstate
         
 --------------------------------
+-- @function [parent=#Node] setOnEnterCallback 
+-- @param self
+-- @param #function func
+        
+--------------------------------
 -- @function [parent=#Node] getOpacity 
 -- @param self
 -- @return unsigned char#unsigned char ret (return value: unsigned char)
@@ -171,6 +200,11 @@
 -- @function [parent=#Node] setNormalizedPosition 
 -- @param self
 -- @param #vec2_table vec2
+        
+--------------------------------
+-- @function [parent=#Node] setonExitTransitionDidStartCallback 
+-- @param self
+-- @param #function func
         
 --------------------------------
 -- @function [parent=#Node] convertTouchToNodeSpace 
@@ -203,6 +237,11 @@
 -- @param #cc.Node node
         
 --------------------------------
+-- @function [parent=#Node] getName 
+-- @param self
+-- @return string#string ret (return value: string)
+        
+--------------------------------
 -- @function [parent=#Node] getRotation3D 
 -- @param self
 -- @return vec3_table#vec3_table ret (return value: vec3_table)
@@ -217,6 +256,11 @@
 -- @param self
 -- @param #cc.Touch touch
 -- @return vec2_table#vec2_table ret (return value: vec2_table)
+        
+--------------------------------
+-- @function [parent=#Node] getOnEnterCallback 
+-- @param self
+-- @return function#function ret (return value: function)
         
 --------------------------------
 -- @function [parent=#Node] convertToNodeSpace 
@@ -358,6 +402,12 @@
 -- @param #unsigned int int
 
 --------------------------------
+-- @function [parent=#Node] removeChildByName 
+-- @param self
+-- @param #string str
+-- @param #bool bool
+        
+--------------------------------
 -- @function [parent=#Node] getGLProgramState 
 -- @param self
 -- @return GLProgramState#GLProgramState ret (return value: cc.GLProgramState)
@@ -391,6 +441,11 @@
 -- @param self
 -- @param #int int
 -- @return Action#Action ret (return value: cc.Action)
+        
+--------------------------------
+-- @function [parent=#Node] setName 
+-- @param self
+-- @param #string str
         
 --------------------------------
 -- overload function: setAdditionalTransform(cc.AffineTransform)
@@ -516,6 +571,11 @@
 -- @param #float float
 
 --------------------------------
+-- @function [parent=#Node] getOnExitCallback 
+-- @param self
+-- @return function#function ret (return value: function)
+        
+--------------------------------
 -- @function [parent=#Node] getChildByTag 
 -- @param self
 -- @param #int int
@@ -611,6 +671,17 @@
 -- @function [parent=#Node] setUserObject 
 -- @param self
 -- @param #cc.Ref ref
+        
+--------------------------------
+-- @function [parent=#Node] enumerateChildren 
+-- @param self
+-- @param #string str
+-- @param #function func
+        
+--------------------------------
+-- @function [parent=#Node] getonExitTransitionDidStartCallback 
+-- @param self
+-- @return function#function ret (return value: function)
         
 --------------------------------
 -- overload function: removeFromParentAndCleanup(bool)

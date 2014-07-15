@@ -428,6 +428,14 @@ bool TextField::init()
     
 void TextField::onEnter()
 {
+#if CC_ENABLE_SCRIPT_BINDING
+    if (_scriptType == kScriptTypeJavascript)
+    {
+        if (ScriptEngineManager::sendNodeEventToJSExtended(this, kNodeOnEnter))
+            return;
+    }
+#endif
+    
     Widget::onEnter();
     scheduleUpdate();
 }
@@ -629,7 +637,6 @@ bool TextField::isPasswordEnabled()const
 void TextField::setPasswordStyleText(const char *styleText)
 {
     _textFieldRenderer->setPasswordStyleText(styleText);
-    
     _passwordStyleText = styleText;
     
     setText(getStringValue());
@@ -824,8 +831,8 @@ void TextField::textfieldRendererScaleChangedWithSize()
             _textFieldRenderer->setScale(1.0f);
             return;
         }
-        float scaleX = _size.width / textureSize.width;
-        float scaleY = _size.height / textureSize.height;
+        float scaleX = _contentSize.width / textureSize.width;
+        float scaleY = _contentSize.height / textureSize.height;
         _textFieldRenderer->setScaleX(scaleX);
         _textFieldRenderer->setScaleY(scaleY);
 		//_textFieldRenderer->setPosition(_contentSize.width / 2.0f, _contentSize.height / 2.0f);
